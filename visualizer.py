@@ -9,6 +9,10 @@ from model_generator import train
 
 
 # _____________ constants/initializing _____________
+PREDICTED_DIGIT = None
+layer_input = "2"
+nodes_input = "128,128"
+input_active = None
 # Load the model
 try:
     model = tf.keras.models.load_model(MODEL_PATH)
@@ -31,7 +35,7 @@ class NodeVis:
         self.activation = activation
         self.color = (255-(activation*255), activation*255, 0)
     def draw(self, surface, center):
-        pygame.draw.circle(surface, self.color, center, 15)
+        pygame.draw.circle(surface, self.color, center, 8)
 
 class Layer:
     def __init__(self, layer_num, output = False):
@@ -44,16 +48,15 @@ class Layer:
 
     def draw_layer(self):
         delta = (HEIGHT-100)/(self.nodes.__len__())
-
         for i in range(self.nodes.__len__()):
             x = self.layer_num * (WIDTH - 500) / layer_total + 400
             y = 100 + (delta * i)
             self.nodes[i].draw(screen, (x, y))
-
             if self.output:
                 label_text = font.render(str(i), True, (0, 0, 0))
                 label_pos = (x + 30, y - label_text.get_height() // 2)
                 screen.blit(label_text, label_pos)
+
     def modify_layer(self, activations):
         print(f"Updating layer {self.layer_num} with {len(activations[0])}")
         for i, node in enumerate(self.nodes):
@@ -83,7 +86,7 @@ class Button:
 
 # Example callback function
 def on_button_click():
-    global model
+    global model, PREDICTED_DIGIT
     if model is None:
             print("error: No model loaded")
             return
@@ -100,8 +103,8 @@ def on_button_click():
         print("Predicting Digit...")
         # Load model
         prediction = model.predict(image_arr)
-        predicted_digit = np.argmax(prediction)
-        print(f"Predicted digit: {predicted_digit}")
+        PREDICTED_DIGIT = np.argmax(prediction)
+        print(f"Predicted digit: {PREDICTED_DIGIT}")
         canvas_surface.fill(WHITE)
     except Exception as e:
         print(f"yikers... {e}")
@@ -109,12 +112,31 @@ def on_button_click():
 
 
 def retrain_model():
+    global model, layer_total, node_list, layers
     try:
         print("Retraining model")
+        new_layers = int(layer_input) + 1 if layer_input.isdigit() else layer_total
+        new_nodes = [int(n) for n in nodes_input.split(",") if n.strip().isdigit()]
+        if len(new_nodes) != new_layers -1:
+            print("Err: node count must match hidden layers")
+            return
+        layer_total = new_layers
+        node_list = new_nodes
         train(layer_total, node_list)
-        global model
         model = tf.keras.models.load_model(MODEL_PATH)
         print("Model retrained and reloaded")
+
+        layers = []
+        for k in range(layer_total-1):
+            layer = Layer(k+1)
+            for _ in range(node_list[k]):
+                layer.add_node(NodeVis(0))
+                layers.append(layer)
+            ouput = Layer(layer_total, True)
+            for i in range(10):
+                output.add_node(NodeVis(0))
+            layers.append(output)
+            print(f"Updated {len(layers)} layers")
     except Exception as e:
         print(f"Yikers: {e}")
 
@@ -136,9 +158,12 @@ buttons = [
     Button(100, 850, 150, 50, "Retrain Model", retrain_model),
     Button(100, 950, 150, 50, "Exit", lambda: sys.exit())
 ]
+layer_rect = pygame.Rect(50, 50, 200, 30)
+nodes_rect = pygame.Rect(50, 100, 200, 30)
 
 
 # _____________ app logic _____________
+"""
 try:
     print("<Welcome to the Interactive Neural Network>")
     print("Please fill in all information before opening the application")
@@ -148,10 +173,11 @@ try:
         nodes = int(input("Number of nodes in hidden layer #"+str(j+1)+": "))
         node_list.append(nodes)
     print(f"Set up {layer_total-1} hidden layers with nodes: {node_list}")
+    retrain_model()
 except Exception as e:
     print(f"Error setting up layers: {e}")
     sys.exit(-1)
-
+"""
 
 try:
     # Initialize pygame
@@ -202,9 +228,30 @@ try:
                     toggle_fullscreen()
                 elif event.key == pygame.K_ESCAPE:
                     running = False
+                elif input_active == "layers":
+                    if event.key == pygame.K_RETURN:
+                        input_active = None
+                    elif event.key == pygame.K_BACKSPACE:
+                        layer_input = layer_input[:-1]
+                    elif event.unicode.isdigit():
+                        layer_input += event.unicode
+                elif input_active == "nodes":
+                    if event.key == pygame.K_RETURN:
+                        input_active = None
+                    elif event.key == pygame.K_BACKSPACE:
+                        nodes_input = nodes_input[:-1]
+                    elif event.unicode.isdigit() or event.unicode == ",":
+                        nodes_input += event.unicode
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if canvas_rect.collidepoint(event.pos):
+                if layer_rect.collidepoint(event.pos):
+                    input_active = layers
+                elif nodes_rect.collidepoint(event.pos):
+                    input_active = "nodes"
+                elif canvas_rect.collidepoint(event.pos):
                     drawing = True
+                    input_active = None
+                else:
+                    input_active = None
                 if event.button == 1:  # Clicking with the left mouse button
                     for button in buttons:
                         button.check_click(event.pos)
@@ -222,6 +269,22 @@ try:
             button.draw(screen)
         for layer in layers:
             layer.draw_layer()
+
+        if PREDICTED_DIGIT is None:
+                text_surf = font.render(f"Draw a digit and see what the model predicts!", True, BLACK)
+                screen.blit(text_surf, (50, 250))
+        if PREDICTED_DIGIT is not None:
+                text_surf = font.render(f"Predicted: {PREDICTED_DIGIT}", True, BLACK)
+                screen.blit(text_surf, (50, 250))
+
+        pygame.draw.rect(screen, WHITE if input_active == "layers" else LIGHT_GRAY, layer_rect)
+        pygame.draw.rect(screen, BLACK, layer_rect, 2)
+        layer_surf = font.render(f"Layers: {layer_input}", True, BLACK)
+        screen.blit(layer_surf, (layer_rect.x+5, layer_rect.y + 5))
+        pygame.draw.rect(screen, WHITE if input_active == "nodes" else LIGHT_GRAY, nodes_rect)
+        pygame.draw.rect(screen, BLACK, nodes_rect, 2)
+        nodes_surf = font.render(f"Nodes: {nodes_input}", True, BLACK)
+        screen.blit(nodes_surf, (nodes_rect.x + 5, nodes_rect.y + 5))
 
         pygame.display.flip()  # Update display
         clock.tick(60)  # Limit to 60 FPS
