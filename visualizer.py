@@ -54,6 +54,11 @@ class Layer:
                 label_text = font.render(str(i), True, (0, 0, 0))
                 label_pos = (x + 30, y - label_text.get_height() // 2)
                 screen.blit(label_text, label_pos)
+    def modify_layer(self, activations):
+        print(f"Updating layer {self.layer_num} with {len(activations[0])}")
+        for i, node in enumerate(self.nodes):
+            node.activation = activations[0][i] if i < len(activations[0]) else 0
+            node.color = (255-(node.activaiton*255), node.activation*255, 0)
 
 # Button Class
 class Button:
@@ -78,41 +83,25 @@ class Button:
 
 # Example callback function
 def on_button_click():
+    global model
+    if model is None:
+            print("error: No model loaded")
+            return
     try:
+        print("Processing canvas image...")
         canvas_str = pygame.image.tostring(canvas_surface, "RGB")
         image = Image.frombytes("RGB", (280, 280), canvas_str)
-
         # Convert to grayscale and resize
         image = image.convert("L")
         image = ImageOps.invert(image)
         image = image.resize((28, 28))
-
         image_arr = np.array(image) / 255.0
         image_arr = image_arr.reshape(1, 28, 28)
-
+        print("Predicting Digit...")
         # Load model
-        model =  tf.keras.models.load_model(MODEL_PATH)
-
         prediction = model.predict(image_arr)
         predicted_digit = np.argmax(prediction)
         print(f"Predicted digit: {predicted_digit}")
-
-        inputs = tf.keras.Input(shape=(28, 28))
-
-        x = tf.keras.layers.Flatten()(inputs)
-        x1 = tf.keras.layers.Dense(128, activation='relu')(x)
-        x2 = tf.keras.layers.Dense(128, activation='relu')(x1)
-        outputs = tf.keras.layers.Dense(10, activation='softmax')(x2)
-        activation_model = tf.keras.Model(inputs=inputs, outputs=[x1, x2, outputs])
-
-        (_, _), (img_test, _) = tf.keras.Model(inputs=inputs, outputs=[x1,x2,outputs])
-        img_test = tf.keras.utils.normalize(img_test, axis=1)
-        input_image = img_test[0].reshape(1, 28, 28)
-
-        activations = activation_model.predict(input_image)
-
-        for i in range(len(activations) - 1):  # Skip last if it's output layer
-            layers[i].modify_layer(activations[i])
         canvas_surface.fill(WHITE)
     except Exception as e:
         print(f"yikers... {e}")
@@ -121,7 +110,14 @@ def on_button_click():
 
 
 def retrain_model():
-    train(layer_total, node_list)
+    try:
+        print("Retraining model")
+        train(layer_total, node_list)
+        global model
+        model = tf.keras.models.load_model(MODEL_PATH)
+        print("Model retrained adn reloaded")
+    except Exception as e:
+        print(f"Yikers: {e}")
 
 
 
@@ -144,98 +140,93 @@ buttons = [
 
 
 # _____________ app logic _____________
-print("<Welcome to the Interactive Neural Network>")
-print("Please fill in all information before opening the application")
-layer_total = int(input("Number of hidden layers: ")) + 1
+try:
+    print("<Welcome to the Interactive Neural Network>")
+    print("Please fill in all information before opening the application")
+    layer_total = int(input("Number of hidden layers: ")) + 1
+    node_list = []
+    for j in range(layer_total-1):
+        nodes = int(input("Number of nodes in hidden layer #"+str(j+1)+": "))
+        node_list.append(nodes)
+except Exception as e:
+    print(f"Error setting up layers: {e}")
+    sys.exit(-1)
 
-node_list = []
 
-for j in range(layer_total-1):
-    nodes = int(input("Number of nodes in hidden layer #"+str(j+1)+": "))
-    node_list.append(nodes)
+try:
+    # Initialize pygame
+    pygame.init()
+    # Creates the display
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    info = pygame.display.Info()
+    WIDTH, HEIGHT = info.current_w, info.current_h
+    is_fullscreen = True
+    pygame.display.set_caption("Interactive Neural Network")
+    # Set up "in game" clock
+    clock = pygame.time.Clock()
+    # font used for buttons/text
+    font = pygame.font.SysFont("Arial", 24)
+    canvas_rect = pygame.Rect(50, 300, 280, 280)  # Your drawing box (10x scale of 28x28)
+    canvas_surface = pygame.Surface((280, 280))
+    canvas_surface.fill(WHITE)
+    drawing = False
+    #drawing board, so to speak, for the input digit
+    layers = []
+    for k in range(layer_total-1):
+        layer = Layer(k+1)
+        for l in range(node_list[k]):
+            layer.add_node(NodeVis(0))
+        layers.append(layer)
 
-
-# Initialize pygame
-pygame.init()
-
-# Creates the display
-screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-info = pygame.display.Info()
-WIDTH, HEIGHT = info.current_w, info.current_h
-is_fullscreen = True
-
-pygame.display.set_caption("Interactive Neural Network")
-
-# Set up "in game" clock
-clock = pygame.time.Clock()
-
-# font used for buttons/text
-font = pygame.font.SysFont("Arial", 24)
-
-canvas_rect = pygame.Rect(50, 300, 280, 280)  # Your drawing box (10x scale of 28x28)
-canvas_surface = pygame.Surface((280, 280))
-canvas_surface.fill(WHITE)
-drawing = False
-#drawing board, so to speak, for the input digit
-
-layers = []
-
-for k in range(layer_total-1):
-    layer = Layer(k+1)
-    for l in range(node_list[k]):
-        layer.add_node(NodeVis(0))
-    layers.append(layer)
-
-output = Layer(layer_total, True)
-for i in range(10):
-    output.add_node(node = NodeVis(0))
-layers.append(output)
+    output = Layer(layer_total, True)
+    for i in range(10):
+        output.add_node(node = NodeVis(0))
+    layers.append(output)
+except Exception as e:
+    print(f"yikers... {e}")
+    sys.exit(-1)
 
 running = True
-
 while running:
-    screen.fill(BACKGROUND)  # Sets the background color to white
-
-
-    # Event handling
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        #quits upon clicking the "quit" button
-
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_f:
-            # Makes 'F' toggle fullscreen
-                toggle_fullscreen()
-            elif event.key == pygame.K_ESCAPE:
+    try:
+        screen.fill(BACKGROUND)  # Sets the background color to white
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
                 running = False
+            #quits upon clicking the "quit" button
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                # Makes 'F' toggle fullscreen
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if canvas_rect.collidepoint(event.pos):
+                    drawing = True
+                if event.button == 1:  # Clicking with the left mouse button
+                    for button in buttons:
+                        button.check_click(event.pos)
+            elif event.type == pygame.MOUSEBUTTONUP:
+                drawing = False
+            elif event.type == pygame.MOUSEMOTION and drawing:
+                if canvas_rect.collidepoint(event.pos):
+                    pygame.draw.circle(canvas_surface, BLACK, (event.pos[0] - canvas_rect.x, event.pos[1] - canvas_rect.y),
+                                       8)
+        # Draw the canvas area to the screen
+        screen.blit(canvas_surface, canvas_rect.topleft)
+        pygame.draw.rect(screen, BLACK, canvas_rect, 2)  # Outline
+        # Draw all buttons
+        for button in buttons:
+            button.draw(screen)
+        for layer in layers:
+            layer.draw_layer()
 
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if canvas_rect.collidepoint(event.pos):
-                drawing = True
-            if event.button == 1:  # Clicking with the left mouse button
-                for button in buttons:
-                    button.check_click(event.pos)
-        elif event.type == pygame.MOUSEBUTTONUP:
-            drawing = False
-        elif event.type == pygame.MOUSEMOTION and drawing:
-            if canvas_rect.collidepoint(event.pos):
-                pygame.draw.circle(canvas_surface, BLACK, (event.pos[0] - canvas_rect.x, event.pos[1] - canvas_rect.y),
-                                   8)
-
-    # Draw the canvas area to the screen
-    screen.blit(canvas_surface, canvas_rect.topleft)
-    pygame.draw.rect(screen, BLACK, canvas_rect, 2)  # Outline
-
-    # Draw all buttons
-    for button in buttons:
-        button.draw(screen)
-
-    for layer in layers:
-        layer.draw_layer()
-
-    pygame.display.flip()  # Update display
-    clock.tick(60)  # Limit to 60 FPS
+        pygame.display.flip()  # Update display
+        clock.tick(60)  # Limit to 60 FPS
+    except Exception as e:
+        print(f"Yikers... {e}")
+        running = False
 
 pygame.quit()
 sys.exit()
