@@ -188,8 +188,8 @@ except Exception as e:
     sys.exit(-1)
 
 running = True
-while running:
-    try:
+try:
+    while running:
         screen.fill(BACKGROUND)  # Sets the background color to white
         # Event handling
         for event in pygame.event.get():
@@ -225,9 +225,9 @@ while running:
 
         pygame.display.flip()  # Update display
         clock.tick(60)  # Limit to 60 FPS
-    except Exception as e:
-        print(f"Yikers... {e}")
-        running = False
+except Exception as e:
+    print(f"Yikers... {e}")
+    running = False
 
 pygame.quit()
 sys.exit()

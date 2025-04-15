@@ -31,10 +31,12 @@ def train(layer_total, nodes):
         #trains the model on the images and labels, iterates through the data 5 times
         os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
         model.save(MODEL_PATH)
-        exit(0)
     except Exception as e:
         print(f"Yikers... {e}")
         raise
 
-
-train(3, [10, 10, 10])
+if __name__ == "__main__":
+    try:
+        train(3, [10, 10, 10])
+    except Exception as e:
+        print(f"Main execution failed: {e}")
