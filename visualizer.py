@@ -13,8 +13,8 @@ from model_generator import train
 try:
     model = tf.keras.models.load_model(MODEL_PATH)
     print(f"Model loaded from {MODEL_PATH}")
-except FileNotFoundError as f:
-    print(f"Yikers... {f}")
+except Exception as e:
+    print(f"Yikers... {e}")
     model = None
 
 
@@ -58,7 +58,7 @@ class Layer:
         print(f"Updating layer {self.layer_num} with {len(activations[0])}")
         for i, node in enumerate(self.nodes):
             node.activation = activations[0][i] if i < len(activations[0]) else 0
-            node.color = (255-(node.activaiton*255), node.activation*255, 0)
+            node.color = (255-(node.activation*255), node.activation*255, 0)
 
 # Button Class
 class Button:
@@ -105,7 +105,6 @@ def on_button_click():
         canvas_surface.fill(WHITE)
     except Exception as e:
         print(f"yikers... {e}")
-        model = None
 
 
 
@@ -115,7 +114,7 @@ def retrain_model():
         train(layer_total, node_list)
         global model
         model = tf.keras.models.load_model(MODEL_PATH)
-        print("Model retrained adn reloaded")
+        print("Model retrained and reloaded")
     except Exception as e:
         print(f"Yikers: {e}")
 
@@ -148,6 +147,7 @@ try:
     for j in range(layer_total-1):
         nodes = int(input("Number of nodes in hidden layer #"+str(j+1)+": "))
         node_list.append(nodes)
+    print(f"Set up {layer_total-1} hidden layers with nodes: {node_list}")
 except Exception as e:
     print(f"Error setting up layers: {e}")
     sys.exit(-1)
@@ -182,6 +182,7 @@ try:
     for i in range(10):
         output.add_node(node = NodeVis(0))
     layers.append(output)
+    print(f"Initialized {len(layers)} layers for visualization")
 except Exception as e:
     print(f"yikers... {e}")
     sys.exit(-1)
