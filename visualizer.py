@@ -13,6 +13,8 @@ PREDICTED_DIGIT = None
 layer_input = "2"
 nodes_input = "128,128"
 input_active = None
+layer_total = 3
+node_list = [128, 128]
 # Load the model
 try:
     model = tf.keras.models.load_model(MODEL_PATH)
@@ -117,7 +119,7 @@ def retrain_model():
         print("Retraining model")
         new_layers = int(layer_input) + 1 if layer_input.isdigit() else layer_total
         new_nodes = [int(n) for n in nodes_input.split(",") if n.strip().isdigit()]
-        if len(new_nodes) != new_layers -1:
+        if len(new_nodes) != new_layers - 1:
             print("Err: node count must match hidden layers")
             return
         layer_total = new_layers
@@ -132,7 +134,7 @@ def retrain_model():
             for _ in range(node_list[k]):
                 layer.add_node(NodeVis(0))
                 layers.append(layer)
-            ouput = Layer(layer_total, True)
+            output = Layer(layer_total, True)
             for i in range(10):
                 output.add_node(NodeVis(0))
             layers.append(output)
@@ -244,7 +246,7 @@ try:
                         nodes_input += event.unicode
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if layer_rect.collidepoint(event.pos):
-                    input_active = layers
+                    input_active = "layers"
                 elif nodes_rect.collidepoint(event.pos):
                     input_active = "nodes"
                 elif canvas_rect.collidepoint(event.pos):
