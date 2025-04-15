@@ -1,19 +1,22 @@
 # _____________ imports _____________
-import tkinter as tk
+from model_generator import MODEL_PATH
 from PIL import Image, ImageDraw, ImageOps
 import numpy as np
 import tensorflow as tf
 import pygame
 import sys
-
-from tensorflow.python.keras.models import load_model, Model
-
 from model_generator import train
 
-# _____________ constants/initializing _____________
 
+# _____________ constants/initializing _____________
 # Load the model
-model = tf.keras.models.load_model("model/digit_recognizer.keras")
+try:
+    model = tf.keras.models.load_model(MODEL_PATH)
+    print(f"Model loaded from {MODEL_PATH}")
+except FileNotFoundError as f:
+    print(f"Yikers... {f}")
+    model = None
+
 
 # Colors
 WHITE = (255, 255, 255)
@@ -75,46 +78,45 @@ class Button:
 
 # Example callback function
 def on_button_click():
-    canvas_str = pygame.image.tostring(canvas_surface, "RGB")
-    image = Image.frombytes("RGB", (280, 280), canvas_str)
+    try:
+        canvas_str = pygame.image.tostring(canvas_surface, "RGB")
+        image = Image.frombytes("RGB", (280, 280), canvas_str)
 
-    # Convert to grayscale and resize
-    image = image.convert("L")
-    image = ImageOps.invert(image)
-    image = image.resize((28, 28))
+        # Convert to grayscale and resize
+        image = image.convert("L")
+        image = ImageOps.invert(image)
+        image = image.resize((28, 28))
 
-    image_arr = np.array(image) / 255.0
-    image_arr = image_arr.reshape(1, 28, 28)
+        image_arr = np.array(image) / 255.0
+        image_arr = image_arr.reshape(1, 28, 28)
 
-    # Load model
-    model =  tf.keras.models.load_model("model/digit_recognizer.keras")
+        # Load model
+        model =  tf.keras.models.load_model(MODEL_PATH)
 
-    model.predict(image_arr)
+        prediction = model.predict(image_arr)
+        predicted_digit = np.argmax(prediction)
+        print(f"Predicted digit: {predicted_digit}")
 
-    inputs = tf.keras.Input(shape=(28, 28))
-    x = tf.keras.layers.Flatten()(inputs)
-    x1 = tf.keras.layers.Dense(128, activation='relu')(x)
-    x2 = tf.keras.layers.Dense(128, activation='relu')(x1)
-    outputs = tf.keras.layers.Dense(10, activation='softmax')(x2)
+        inputs = tf.keras.Input(shape=(28, 28))
 
-    activation_model = tf.keras.Model(inputs=inputs, outputs=[x1, x2, outputs])
+        x = tf.keras.layers.Flatten()(inputs)
+        x1 = tf.keras.layers.Dense(128, activation='relu')(x)
+        x2 = tf.keras.layers.Dense(128, activation='relu')(x1)
+        outputs = tf.keras.layers.Dense(10, activation='softmax')(x2)
+        activation_model = tf.keras.Model(inputs=inputs, outputs=[x1, x2, outputs])
 
-    # Load MNIST test image to test activations
-    (_, _), (img_test, _) = tf.keras.datasets.mnist.load_data()
-    img_test = tf.keras.utils.normalize(img_test, axis=1)
+        (_, _), (img_test, _) = tf.keras.Model(inputs=inputs, outputs=[x1,x2,outputs])
+        img_test = tf.keras.utils.normalize(img_test, axis=1)
+        input_image = img_test[0].reshape(1, 28, 28)
 
-    input_image = img_test[0].reshape(1, 28, 28)  # Single input
+        activations = activation_model.predict(input_image)
 
-    # Get activations
-    activations = activation_model.predict(input_image)
-
-    prediction = np.argmax(activations[len(activations)-1])
-
-    print(len(layers))
-    canvas_surface.fill(WHITE)
-
-    for i in range(len(activations) - 1):  # Skip last if it's output layer
-        layers[i].modify_layer(activations[i])
+        for i in range(len(activations) - 1):  # Skip last if it's output layer
+            layers[i].modify_layer(activations[i])
+        canvas_surface.fill(WHITE)
+    except Exception as e:
+        print(f"yikers... {e}")
+        model = None
 
 
 

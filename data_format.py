@@ -1,10 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-# Load your model
 
-
-# Rebuild the model using Functional API to safely get intermediate outputs
 inputs = tf.keras.Input(shape=(28, 28))
 x = tf.keras.layers.Flatten()(inputs)
 x1 = tf.keras.layers.Dense(128, activation='relu')(x)
