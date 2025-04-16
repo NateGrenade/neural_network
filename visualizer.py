@@ -60,6 +60,7 @@ class Layer:
                 screen.blit(label_text, label_pos)
 
     def modify_layer(self, activations):
+
         print(f"Updating layer {self.layer_num} with {len(activations[0])}")
         for i, node in enumerate(self.nodes):
             node.activation = activations[0][i] if i < len(activations[0]) else 0
