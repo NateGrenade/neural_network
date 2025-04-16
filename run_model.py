@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from model_generator import MODEL_PATH
-from model_generator import img_test, lbl_test
 
 (_,_),(test_images, _) = tf.keras.datasets.mnist.load_data()
 test_images = test_images/255.0
