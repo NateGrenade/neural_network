@@ -22,7 +22,6 @@ def train(layer_total, nodes):
         data_set = tf.keras.datasets.mnist
         (img_train, lbl_train), (img_test, lbl_test) = data_set.load_data()
         img_train = tf.keras.utils.normalize(img_train, axis=1)
-        img_test = tf.keras.utils.normalize(img_test, axis=1)
 
         # Compiles the model, then trains it on the premade dataset of handwritten images
         model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
